@@ -1,26 +1,27 @@
+```text
 project-root/
 │
-├── config/                 # System configuration (API keys, Model settings)
-│   └── settings.py
+├── config/                 # SYSTEM CONFIGURATION
+│   └── settings.py         # API keys, Model settings, Environment variables
 │
-├── prompts/                # LAYER 1: TEMPLATE LAYER (Manage all Prompts)
+├── prompts/                # LAYER 1: TEMPLATE LAYER (Prompt Management)
 │   ├── __init__.py
-│   ├── router_prompts.yaml # Prompt for classify
-│   └── agent_prompts.yaml  # Prompt for agent (Tech, Sales...)
+│   ├── router_prompts.yaml # Prompts for classification logic
+│   └── agent_prompts.yaml  # Prompts for specialized agents (Tech, Sales, etc.)
 │
 ├── infrastructure/         # LAYER 2: RAG LAYER
 │   ├── __init__.py
-│   └── database.py         # Store data to RAG
+│   └── database.py         # Vector DB & Data indexing for RAG
 │   
-|
 ├── core/                   # LAYER 3 & 4: ROUTER & EXECUTION LAYER
 │   ├── __init__.py
-│   ├── llm_client.py       # Wrapper for connecting to OpenAI/Anthropic/Gemini/Ollama
-│   ├── router.py           # Logic to identify user's query
-│   └── executor.py         # Logic to pick up prompt và execute answer
+│   ├── llm_client.py       # Wrapper for OpenAI/Anthropic/Gemini/Ollama
+│   ├── router.py           # Logic to classify/identify user's query
+│   └── executor.py         # Logic to fetch prompts and execute reasoning
 │
-├── services/               # Additional Layer- Service Layer- for MCP (For example: DB, Log, Search)
-│   └── logger.py
+├── services/               # SERVICE LAYER (MCP & Utilities)
+│   ├── __init__.py
+│   └── logger.py           # Logging, Search, and DB service connectors
 │
 ├── main.py                 # LAYER 5: INTERFACE LAYER (Entry point)
-└── requirements.txt
+└── requirements.txt        # Project dependencies
