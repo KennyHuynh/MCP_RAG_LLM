@@ -1,4 +1,6 @@
 ```text
+PROJECT STRUCTURE:
+
 project-root/
 │
 ├── config/                 # SYSTEM CONFIGURATION
