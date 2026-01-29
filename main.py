@@ -26,7 +26,8 @@ async def run_system():
 
     # 2. Run the process to generate script for a website
     target_url = "https://demo.testarchitect.com/my-account"
-    user_queries = [f'Generate Playwright automation code of login feature for: {target_url}']
+    # user_queries = [f'Generate Playwright automation code of login feature for: {target_url}']
+    user_queries = [f'how to buy and pay for an item']
     print(f"--- Processing page: {target_url} ---")
 
     for query in user_queries:

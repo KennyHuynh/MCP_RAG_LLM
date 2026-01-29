@@ -1,0 +1,127 @@
+[
+  {
+    "id": "ae_login_flow",
+    "scope": "Authentication",
+    "search_keywords": "login",
+    "description": "User login process to be used as a standalone test or a dependency.",
+    "target_url": "https://automationexercise.com",
+    "discovery_goals": {
+      "email_field": "Input field for login email, typically identified by data-qa='login-email'.",
+      "password_field": "Input field for login password, typically identified by data-qa='login-password'.",
+      "login_button": "Submit button for the login form, typically data-qa='login-button'."
+    },
+    "expected_behavior": {
+      "on_success": {
+        "url_pattern": ".*/",
+        "indicator": "Text 'Logged in as' should be visible in the header."
+      },
+      "on_failure": {
+        "indicator": "Error message 'Your email or password is incorrect!' is displayed."
+      }
+    },
+    "technical_guidelines": {
+      "strategy": "Form_Discovery",
+      "locator_priority": ["data-qa", "name", "aria-label", "placeholder"],
+      "best_practices": {
+        "playwright": "Use page.getByLabel() or page.locator('[data-qa=...]').",
+        "env_vars": ["USER_EMAIL", "USER_PWD"]
+      }
+    }
+  },
+  {
+    "id": "ae_add_to_cart",
+    "scope": "Product Interaction",
+    "search_keywords": "add to cart",
+    "description": "Discover and automate adding the first available product to the cart.",
+    "target_url": "https://automationexercise.com",
+    "discovery_goals": {
+      "first_product": "The container of the first product displayed in the grid.",
+      "add_to_cart_btn": "The 'Add to cart' button associated with the first product.",
+      "continue_shopping_btn": "The 'Continue Shopping' button in the post-action modal."
+    },
+    "expected_behavior": {
+      "on_click_add": "A modal appears with success message 'Added!'.",
+      "on_click_continue": "The success modal closes, and the user remains on the products page."
+    },
+    "technical_guidelines": {
+      "strategy": "DOM_Traversal",
+      "locator_priority": ["data-qa", "text", "class"],
+      "best_practices": {
+        "playwright": "Use .first() to target the first item in a grid to avoid ambiguity."
+      }
+    }
+  },
+  {
+    "id": "ae_checkout_flow",
+    "scope": "Purchase Flow",
+    "search_keywords": "checkout proceed",
+    "description": "Review cart and initiate the checkout process with multi-dependency handling (Auth & Cart state).",
+    "target_url": "https://automationexercise.com",
+    "discovery_goals": {
+        "proceed_btn": "The 'Proceed To Checkout' button in the cart summary."
+    },
+    "dependency_management": {
+        "logic": "sequential", 
+        "requirements": [
+            {
+                "id": "ae_add_to_cart",
+                "purpose": "Ensure at least one product exists in the cart before checking out.",
+                "condition": "If cart is empty or product table is missing",
+                "action": "Execute ae_add_to_cart and return to /view_cart"
+            },
+            {
+                "id": "ae_login_flow",
+                "purpose": "Authentication required for checkout summary.",
+                "condition": "If 'Register / Login' modal or text appears after clicking proceed",
+                "trigger": {
+                "type": "Modal",
+                "detection_text": "Register / Login",
+                "action": "Click 'Register / Login' link"
+                },
+                "recovery": "Navigate back to https://automationexercise.com"
+            }
+        ]
+    },
+    "expected_behavior": {
+        "on_proceed_authorized": {
+        "url_pattern": ".*/checkout",
+        "indicator": "Checkout summary with address and order details is visible."
+        }
+    },
+    "technical_guidelines": {
+        "strategy": "Chained_Conditional_Workflow",
+        "locator_priority": ["text", "data-qa", "id"],
+        "best_practices": {
+        "playwright": "Use a series of 'if' statements or a pre-check function to validate all requirements in the dependency array."
+        }
+    }
+  },
+  {
+    "id": "ae_payment_flow",
+    "scope": "Finalization",
+    "search_keywords": "payment details confirm",
+    "description": "Fill payment details and confirm the order.",
+    "target_url": "https://automationexercise.com",
+    "discovery_goals": {
+      "name_on_card": "Input for cardholder name.",
+      "card_number": "Input for 16-digit card number.",
+      "cvc": "Input for 3-digit CVC code.",
+      "expiry_month": "Input for expiration month.",
+      "expiry_year": "Input for expiration year.",
+      "pay_confirm_btn": "The button to submit payment, typically 'Pay and Confirm Order'."
+    },
+    "expected_behavior": {
+      "on_submit": {
+        "url_pattern": ".*/payment_done",
+        "indicator": "Text 'ORDER PLACED!' is visible."
+      }
+    },
+    "technical_guidelines": {
+      "strategy": "Secure_Form_Fill",
+      "locator_priority": ["name", "placeholder", "data-qa"],
+      "best_practices": {
+        "playwright": "Use page.fill() for all input fields and verify the redirection."
+      }
+    }
+  }
+]
