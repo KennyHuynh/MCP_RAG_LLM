@@ -8,10 +8,10 @@ from langchain_core.messages import SystemMessage
 class LLMClient:
     def __init__(self, model_name="gpt-4o"):
         self.model_name = model_name
-        if ("openai" or "gpt") in self.model_name:
+        if any(keyword in self.model_name for keyword in ["openai", "gpt"]):
             self.llm = ChatOpenAI(
                 model=self.model_name,
-                api_key=os.environ.get("OPEN_API_KEY"),
+                api_key=os.environ.get("OPENAI_API_KEY"),
                 base_url="https://models.inference.ai.azure.com",
                 temperature=0
             )
@@ -25,7 +25,7 @@ class LLMClient:
         print(f"--- [Log] Calling Model: {self.model_name} ---")
         try:
             # Send message and receive BaseMessage object
-            response = await self.llm.ainvoke([HumanMessage(content=prompt)])
+            response = await self.llm.ainvoke([SystemMessage(content=prompt)])
             return response.content
         except Exception as e:
             return f"Error when calling OpenAI: {str(e)}"
