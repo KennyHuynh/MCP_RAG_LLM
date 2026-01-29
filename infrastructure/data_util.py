@@ -1,4 +1,7 @@
 from langchain_community.document_loaders import DirectoryLoader, UnstructuredFileLoader, TextLoader
+from pathlib import Path
+from typing import List
+from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 def load_entire_knowledge_base(directory_path: str):
 
@@ -26,3 +29,20 @@ def load_entire_knowledge_base(directory_path: str):
     docs = text_loader.load() + binary_loader.load()
     print(f"Successfully loaded {len(docs)} documents from the data repository.")
     return docs
+
+def save_uploaded_files(uploaded_files, save_dir: str = "./infrastructure/rag_data_example/uploaded"):
+
+    save_path = Path(save_dir)
+    save_path.mkdir(parents=True, exist_ok=True)
+
+    saved_files = []
+
+    for uploaded_file in uploaded_files:
+        file_path = save_path / uploaded_file.name
+
+        with open(file_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+
+        saved_files.append(str(file_path))
+
+    return saved_files

@@ -3,12 +3,13 @@ from langchain_openai import ChatOpenAI
 from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage
 from langchain_core.messages import SystemMessage
+import streamlit as st
 
 
 class LLMClient:
     def __init__(self, model_name="gpt-4o"):
         self.model_name = model_name
-        if ("openai" or "gpt") in self.model_name:
+        if self.model_name.startswith("gpt-"):
             self.llm = ChatOpenAI(
                 model=self.model_name,
                 api_key=os.environ.get("OPEN_API_KEY"),
