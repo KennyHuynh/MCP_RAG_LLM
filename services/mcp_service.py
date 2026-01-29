@@ -11,13 +11,19 @@ class MCPService:
         self.mcp = FastMCP("MCP-Adapter")
         self.web_automation_service = WebAutomationService()
 
-        self.tools = {
-            "mcp_web_element_tool": StructuredTool.from_function(
+        scanner_tool_obj = StructuredTool.from_function(
                 name="mcp_web_element_tool",
                 coroutine=self.web_automation_service.get_dom_selectors,
                 args_schema=WebScannerInput,
-                desc="To get and export all element of an website by URL."
+                description="To get and export all element of an website by URL."
             )
+
+        self.tools = {
+            "mcp_web_element_tool": {
+                "instance": scanner_tool_obj,
+                "func": self.web_automation_service.get_dom_selectors, # Tham chiếu hàm để gọi ["func"]
+                "desc": scanner_tool_obj.description
+            }
         }
         #self._setup_mcp_tools()
 
@@ -30,10 +36,13 @@ class MCPService:
     # IDENTIFY METHODS THAT TASKEXECUTOR CALLING
     async def call_tool_async(self, tool_name: str, query: str):
         """Execute tool asynchronize"""
+        if isinstance(tool_name, dict):
+            tool_name = tool_name.get("name") or list(tool_name.values())[0]
+
         if tool_name in self.tools:
             print(f"--- [MCP] Executing tool: {tool_name} ---")
             # Call relevant method (giả định là async)
-            result_data = await self.tools[tool_name]["func"](query)
+            result_data = await self.tools[tool_name]["func"](query=query)
             return json.dumps(result_data, indent=2, ensure_ascii=False)
         return f"Error: Not found tool '{tool_name}'."
 

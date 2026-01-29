@@ -12,23 +12,29 @@ class PromptRouter:
 
     async def get_routing_info(self, query: str) -> dict:
         tools_metadata = []
-        for name, tool_obj in self.mcp_service.tools.items():
-            arg_schema = tool_obj.args_schema.model_json_schema() if tool_obj.args_schema else {}
+        if self.mcp_service and hasattr(self.mcp_service, 'tools'):
+            for name, tool_obj in self.mcp_service.tools.items():
+                tool_instance = tool_obj["instance"]
+                description = tool_instance.description
+                try:
+                    arg_schema = tool_instance.args_schema.model_json_schema() if tool_obj.args_schema else {}
+                except AttributeError:
+                    arg_schema = tool_instance.args_schema.schema()
 
-            tools_metadata.append(
-                {
-                    "name": name,
-                    "description": tool_obj.description,
-                    "required_params": arg_schema.get("required", []),
-                    "param_details": arg_schema.get("properties", {})
-                }
-            )
+                tools_metadata.append(
+                    {
+                        "name": name,
+                        "description": description,
+                        "required_params": arg_schema.get("required", []),
+                        "param_details": arg_schema.get("properties", {})
+                    }
+                )
 
         prompt = f"""
             AVAILABLE MCP TOOLS AND PARAMETER:
             {json.dumps(tools_metadata, indent=2, ensure_ascii=False)}
             Classify: {query} into: AUTO, MANUAL OR GENERAL.
-            If {query} is in MANUAL OR GENERAL, no need to use MCP tools.
+            If category is MANUAL OR GENERAL, no need to use MCP tools.
             Return JSON:
             {{
                 "category": "AUTO | MANUAL | GENERAL",
