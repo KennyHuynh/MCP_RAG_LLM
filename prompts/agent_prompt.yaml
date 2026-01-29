@@ -34,6 +34,6 @@ manual: |
   Question: {query}
 
 general: |
-  You are an enthusiastic virtual assistant. Please answer the question politely:
+  You are an enthusiastic virtual assistant. Please answer the question politely and tell user you're using general information, not from RAG:
   Context: {context}
   Question: {query}

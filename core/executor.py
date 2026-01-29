@@ -19,21 +19,7 @@ class TaskExecutor:
         #     )
         self.llm = llm_client
         self.rag_store = rag_storage
-        self.mcp_service = mcp_service
-        # self.tools = [
-        #     Tool(
-        #         name="ScanWebLayout",
-        #         func=mcp_service.get_dom_selectors,
-        #         description="Scan web page to get selectors. DO NOT include 'url=' or quotes inside the input."
-        #     ),
-        #     Tool(
-        #         name="GetCodeBestPractices",
-        #         func=lambda q: str(self.rag_storage.search_documents(q)),
-        #         description=("Retrieve the most only ONE relevant Playwright best practice."
-        # "Each result is separated by '--- NEXT BEST PRACTICE ---'. ")
-        #     )
-        # ]
-        
+        self.mcp_service = mcp_service 
         self.prompts = all_prompts
         #self.agent = self._build_agent()
 

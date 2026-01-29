@@ -20,13 +20,14 @@ async def run_system():
     storage = RAGStorage()
     mcp_service = MCPService()
     ai_client = LLMClient(model_name="gpt-4o")
-    prompt_router = PromptRouter(llm_client=ai_client, router_prompt_template=prompts["router"])
+    prompt_router = PromptRouter(llm_client=ai_client, router_prompt_template=prompts["router"], mcp_service=mcp_service)
     executor = TaskExecutor(llm_client=ai_client, all_prompts=prompts,
                             mcp_service=mcp_service, rag_storage=storage)
 
     # 2. Run the process to generate script for a website
     target_url = "https://demo.testarchitect.com/my-account"
-    user_queries = [f'Generate Playwright automation code of login feature for: {target_url}']
+    #user_queries = [f'Generate Playwright automation code of login feature for: {target_url}']
+    user_queries = [f'What is login feature?']
     print(f"--- Processing page: {target_url} ---")
 
     for query in user_queries:
