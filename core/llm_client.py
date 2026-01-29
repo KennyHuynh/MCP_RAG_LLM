@@ -8,7 +8,7 @@ from langchain_core.messages import SystemMessage
 class LLMClient:
     def __init__(self, model_name="gpt-4o"):
         self.model_name = model_name
-        if "openai" or "gpt" in self._model_name:
+        if ("openai" or "gpt") in self.model_name:
             self.llm = ChatOpenAI(
                 model=self.model_name,
                 api_key=os.environ.get("OPEN_API_KEY"),

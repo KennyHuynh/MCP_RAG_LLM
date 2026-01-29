@@ -54,6 +54,11 @@ class TaskExecutor:
         
         # Execute selected tool via MCP Service
         for tool_name in selected_tools:
+            if isinstance(tool_name, dict):
+                tool_name = tool_name.get("name") or tool_name.get("tool") or list(tool_name.values())[0]
+            else:
+                # If AI return the correct format
+                tool_name = tool_name
             # Call tool and insert result to context (context)
             tool_result = await self.mcp_service.call_tool_async(tool_name, query=query)
             mcp_context += f"\n[Data from {tool_name}]: {tool_result}"
