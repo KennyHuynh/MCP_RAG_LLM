@@ -1,0 +1,377 @@
+[
+  {
+    "schema_version": "1.0",
+    "test_id": "ae_login_flow",
+    "test_type": "E2E",
+    "scope": "Authentication",
+
+    "intent": {
+      "summary": "Verify that a registered user can successfully log in and access their dashboard.",
+      "business_value": "Ensures authenticated users can access protected features."
+    },
+
+    "preconditions": [
+      "User account exists",
+      "User is logged out",
+      "Application is reachable"
+    ],
+
+    "target": {
+      "base_url": "https://automationexercise.com",
+      "entry_point": "/login"
+    },
+
+    "ui_elements": {
+      "email_input": {
+        "role": "INPUT",
+        "purpose": "User identifier (email or username)",
+        "locator_hints": [
+          "input[name='email']",
+          "#login-email",
+          "placeholder:Email Address"
+        ],
+        "data_binding": "USER_EMAIL"
+      },
+      "password_input": {
+        "role": "INPUT",
+        "purpose": "User secret credential",
+        "locator_hints": [
+          "input[type='password']",
+          "#login-password"
+        ],
+        "data_binding": "USER_PASSWORD"
+      },
+      "submit_button": {
+        "role": "BUTTON",
+        "purpose": "Submit authentication request",
+        "locator_hints": [
+          "button[type='submit']",
+          "button:has-text('Login')"
+        ]
+      }
+    },
+
+    "test_steps": [
+      {
+        "step": 1,
+        "action": "NAVIGATE",
+        "description": "Navigate to the login page",
+        "target": "base_url + entry_point"
+      },
+      {
+        "step": 2,
+        "action": "FILL",
+        "description": "Enter a valid registered email",
+        "element": "email_input"
+      },
+      {
+        "step": 3,
+        "action": "FILL",
+        "description": "Enter the correct password",
+        "element": "password_input"
+      },
+      {
+        "step": 4,
+        "action": "CLICK",
+        "description": "Submit the login form",
+        "element": "submit_button"
+      }
+    ],
+
+    "validation_rules": {
+      "success": {
+        "manual_checks": [
+          "User name is displayed in the header",
+          "Logout option is visible"
+        ],
+        "automation_assertions": [
+          {
+            "assertion_type": "VISIBLE",
+            "selector_hint": "text=Logged in as"
+          },
+          {
+            "assertion_type": "URL_CONTAINS",
+            "expected_value": "/account"
+          }
+        ]
+      },
+      "failure": {
+        "manual_checks": [
+          "Error message is displayed indicating invalid credentials"
+        ],
+        "automation_assertions": [
+          {
+            "assertion_type": "TEXT_VISIBLE",
+            "expected_pattern": "invalid|incorrect",
+            "context_hint": "login form"
+          }
+        ]
+      }
+    },
+
+    "postconditions": [
+      "Authenticated session is established",
+      "User is redirected to the account dashboard"
+    ],
+
+    "tags": [
+      "login",
+      "authentication",
+      "smoke",
+      "critical-path"
+    ]
+  },
+  {
+    "schema_version": "1.0",
+    "test_id": "ae_add_to_cart",
+    "test_type": "E2E",
+    "scope": "Product Interaction",
+
+    "intent": {
+      "summary": "Verify that a user can add the first available product to the cart.",
+      "business_value": "Ensures users can add products to their shopping cart."
+    },
+
+    "preconditions": [
+      "User is on the products page"
+    ],
+
+    "target": {
+      "base_url": "https://automationexercise.com",
+      "entry_point": "/products"
+    },
+
+    "ui_elements": {
+      "first_product": {
+        "role": "CONTAINER",
+        "purpose": "First product displayed in the product grid",
+        "locator_hints": [
+          ".product-image-wrapper",
+          "data-qa:product"
+        ]
+      },
+      "add_to_cart_button": {
+        "role": "BUTTON",
+        "purpose": "Add selected product to cart",
+        "locator_hints": [
+          "text=Add to cart",
+          "data-qa:add-to-cart"
+        ]
+      },
+      "continue_shopping_button": {
+        "role": "BUTTON",
+        "purpose": "Close the success modal and continue shopping",
+        "locator_hints": [
+          "text=Continue Shopping"
+        ]
+      }
+    },
+
+    "test_steps": [
+      {
+        "step": 1,
+        "action": "NAVIGATE",
+        "description": "Navigate to the products page",
+        "target": "base_url + entry_point"
+      },
+      {
+        "step": 2,
+        "action": "CLICK",
+        "description": "Click Add to Cart on the first product",
+        "element": "add_to_cart_button"
+      },
+      {
+        "step": 3,
+        "action": "CLICK",
+        "description": "Close the confirmation modal",
+        "element": "continue_shopping_button"
+      }
+    ],
+
+    "validation_rules": {
+      "success": {
+        "manual_checks": [
+          "A confirmation message indicating the product was added is shown",
+          "The modal closes after clicking Continue Shopping"
+        ],
+        "automation_assertions": [
+          {
+            "assertion_type": "TEXT_VISIBLE",
+            "expected_value": "Added!"
+          }
+        ]
+      }
+    },
+
+    "tags": ["cart", "add-to-cart", "critical-path"]
+  },
+  {
+    "schema_version": "1.0",
+    "test_id": "ae_checkout_flow",
+    "test_type": "E2E",
+    "scope": "Purchase Flow",
+
+    "intent": {
+      "summary": "Verify that a user can proceed to checkout with required prerequisites met.",
+      "business_value": "Ensures checkout is gated correctly by cart and authentication state."
+    },
+
+    "preconditions": [
+      "Cart page is accessible"
+    ],
+
+    "dependencies": {
+      "execution_model": "SEQUENTIAL",
+      "required_flows": [
+        {
+          "test_id": "ae_add_to_cart",
+          "purpose": "Ensure at least one product exists in the cart",
+          "condition": "Cart is empty or product table not visible",
+          "recovery_action": "Execute ae_add_to_cart and return to /view_cart"
+        },
+        {
+          "test_id": "ae_login_flow",
+          "purpose": "Ensure user is authenticated",
+          "condition": "Register / Login prompt appears",
+          "trigger": {
+            "type": "MODAL",
+            "detection_text": "Register / Login"
+          },
+          "recovery_action": "Execute ae_login_flow and return to /view_cart"
+        }
+      ]
+    },
+
+    "target": {
+      "base_url": "https://automationexercise.com",
+      "entry_point": "/view_cart"
+    },
+
+    "ui_elements": {
+      "proceed_to_checkout_button": {
+        "role": "BUTTON",
+        "purpose": "Initiate checkout process",
+        "locator_hints": [
+          "text=Proceed To Checkout",
+          "data-qa:proceed-to-checkout"
+        ]
+      }
+    },
+
+    "test_steps": [
+      {
+        "step": 1,
+        "action": "CLICK",
+        "description": "Proceed to checkout",
+        "element": "proceed_to_checkout_button"
+      }
+    ],
+
+    "validation_rules": {
+      "success": {
+        "manual_checks": [
+          "Checkout page is displayed with address and order details"
+        ],
+        "automation_assertions": [
+          {
+            "assertion_type": "URL_MATCH",
+            "expected_pattern": ".*/checkout"
+          }
+        ]
+      }
+    },
+
+    "tags": ["checkout", "dependency-aware", "critical-path"]
+  },
+  {
+    "schema_version": "1.0",
+    "test_id": "ae_payment_flow",
+    "test_type": "E2E",
+    "scope": "Finalization",
+
+    "intent": {
+      "summary": "Verify that a user can submit payment details and complete an order.",
+      "business_value": "Ensures successful order completion and payment handling."
+    },
+
+    "preconditions": [
+      "User is on the payment page",
+      "Checkout details are completed"
+    ],
+
+    "target": {
+      "base_url": "https://automationexercise.com",
+      "entry_point": "/payment"
+    },
+
+    "ui_elements": {
+      "name_on_card": {
+        "role": "INPUT",
+        "purpose": "Cardholder name",
+        "locator_hints": ["name", "placeholder:Name on Card"]
+      },
+      "card_number": {
+        "role": "INPUT",
+        "purpose": "Credit card number",
+        "locator_hints": ["placeholder:Card Number"]
+      },
+      "cvc": {
+        "role": "INPUT",
+        "purpose": "Card verification code",
+        "locator_hints": ["placeholder:CVC"]
+      },
+      "expiry_month": {
+        "role": "INPUT",
+        "purpose": "Expiration month",
+        "locator_hints": ["placeholder:MM"]
+      },
+      "expiry_year": {
+        "role": "INPUT",
+        "purpose": "Expiration year",
+        "locator_hints": ["placeholder:YYYY"]
+      },
+      "pay_and_confirm_button": {
+        "role": "BUTTON",
+        "purpose": "Submit payment and confirm order",
+        "locator_hints": [
+          "text=Pay and Confirm Order"
+        ]
+      }
+    },
+
+    "test_steps": [
+      {
+        "step": 1,
+        "action": "FILL",
+        "description": "Enter payment details",
+        "element": "name_on_card"
+      },
+      {
+        "step": 2,
+        "action": "CLICK",
+        "description": "Submit payment",
+        "element": "pay_and_confirm_button"
+      }
+    ],
+
+    "validation_rules": {
+      "success": {
+        "manual_checks": [
+          "Order placed confirmation message is displayed"
+        ],
+        "automation_assertions": [
+          {
+            "assertion_type": "URL_MATCH",
+            "expected_pattern": ".*/payment_done"
+          },
+          {
+            "assertion_type": "TEXT_VISIBLE",
+            "expected_value": "ORDER PLACED!"
+          }
+        ]
+      }
+    },
+
+    "tags": ["payment", "order-confirmation", "critical-path"]
+  }
+]
