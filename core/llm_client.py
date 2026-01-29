@@ -21,20 +21,8 @@ class LLMClient:
                 temperature=0
             )
 
-
     async def call_ai(self, prompt: str, temperature: float = 0.3) -> str:
-        # # Emulate = response from AI (openai.chat.completions)
-        # print(f"--- [Log] Calling Model: {self.model_name} ---")
-
-        # response = self.llm.chat.completions.create(
-        #     model=self.model_name,
-        #     messages=[
-        #         {"role": "user", "content": prompt}
-        #     ],
-        #     temperature=temperature,  # Low to ensure accuracy for Router/RAG
-        #     max_tokens=1000
-        # )
-        # return response.choices[0].message.content.strip()
+        print(f"--- [Log] Calling Model: {self.model_name} ---")
         try:
             # Send message and receive BaseMessage object
             response = await self.llm.ainvoke([HumanMessage(content=prompt)])
@@ -46,10 +34,28 @@ class LLMClient:
         try:
             json_model = self.llm.bind(response_format={"type": "json_object"})
             response = await json_model.ainvoke([
-                SystemMessage(content="Your are an assistant just returns data as JSON format."),
+                SystemMessage(
+                    content="Your are an assistant just returns data as JSON format."),
                 HumanMessage(content=prompt)
             ])
             return response.content
         except Exception as e:
             print(f"JSON API error: {e}")
             return '{"category": "GENERAL", "tools": []}'
+
+    async def get_structured_output(self, schema: str, prompt: str):
+         """
+        Force AI return correct format Dictionary/Object.
+        This is wrapper method of with_structured_output of LangChain.
+        """
+         try:
+            # Init a model that convert to Schema
+            # LangChain will automatically handle JSON Mode and Validation
+            structured_llm = self.llm.with_structured_output(schema)
+
+            # Execute and return result parsed to Python Dict
+            result = await structured_llm.ainvoke(prompt)
+            return result
+         except Exception as e:
+            print(f"--- [LLM Error] Error structure identifying: {e} ---")
+            return None
