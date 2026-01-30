@@ -21,28 +21,21 @@ async def run_system():
     mcp_service = MCPService()
     ai_client = LLMClient(model_name="gpt-4o")
     prompt_router = PromptRouter(llm_client=ai_client, router_prompt_template=prompts["router"], mcp_service=mcp_service)
-    executor = TaskExecutor(llm_client=ai_client, all_prompts=prompts,
-                            mcp_service=mcp_service, rag_storage=storage)
-
-    # 2. Run the process to generate script for a website
-    target_url = "https://demo.testarchitect.com/my-account"
-    #user_queries = [f'Generate Playwright automation code of login feature for: {target_url}']
-    user_queries = [f'What is login feature?']
-    print(f"--- Processing page: {target_url} ---")
-
+    user_queries = [f'Generate Playwright automation script to buy an item with url https://automationexercise.com']
     for query in user_queries:
+    # Routing (Classify)
         print(f"\n[User]: {query}")
-        
-        # Step 1: Routing (Classify)
         routing_info = await prompt_router.get_routing_info(query=query)
         category = routing_info['category']
-        selected_tools = routing_info['tools']
         print(f"[Router]: Identify user's purpose as -> {category}")
-        
-        # Step 2: Execution (Execute specific prompt)
-        response = await executor.execute(category=category, query=query, selected_tools=selected_tools)
+        executor = TaskExecutor(llm_client=ai_client, all_prompts=prompts,
+                                mcp_service=mcp_service, rag_storage=storage, routing_info=routing_info)
+        response = await executor.execute(
+            query=query, 
+            routing_info=routing_info
+        )
         print(f"[AI's answer]: {response}")
-
 
 if __name__ == "__main__":
     asyncio.run(run_system())
+    
