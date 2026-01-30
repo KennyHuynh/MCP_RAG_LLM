@@ -36,7 +36,11 @@ class TaskExecutor:
         self.workflow = self._create_workflow()
         self.app = self.workflow.compile()
         self.category = routing_info["category"]
-    
+
+    def _check_category(self, state: AgentState):
+    # state is passed by LangGraph automatically
+        return state["category"]
+
     def _create_workflow(self):
         graph = StateGraph(AgentState)
 
@@ -52,7 +56,7 @@ class TaskExecutor:
         # Conditional Edge: After AI's thoughts, it will call Tool or end flow
         graph.add_conditional_edges(
             "router",
-            lambda state: state["category"], # Based on category to classify
+            self._check_category, # Based on category to classify
             {
                 "AUTO": "agent",
                 "MANUAL": "manual_gen",
@@ -77,7 +81,7 @@ class TaskExecutor:
         """Using router prompt to classify"""
         query = state["messages"][-1].content
         # Call call_with_json hoặc get_structured_output để phân loại
-        return {"category": self.category}
+        return {"category": state["category"]}
     
     async def _manual_node(self, state: AgentState):
         """Using manual/general prompt"""
