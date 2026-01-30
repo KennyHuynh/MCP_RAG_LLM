@@ -25,7 +25,7 @@ class LLMClient:
         print(f"--- [Log] Calling Model: {self.model_name} ---")
         try:
             # Send message and receive BaseMessage object
-            response = await self.llm.ainvoke([SystemMessage(content=prompt)])
+            response = await self.llm.ainvoke([SystemMessage(content=prompt)], {"recursion_limit": 10})
             return response.content
         except Exception as e:
             return f"Error when calling OpenAI: {str(e)}"

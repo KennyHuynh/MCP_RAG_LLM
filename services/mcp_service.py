@@ -11,19 +11,32 @@ class MCPService:
         self.mcp = FastMCP("MCP-Adapter")
         self.web_automation_service = WebAutomationService()
 
-        scanner_tool_obj = StructuredTool.from_function(
-                name="mcp_web_element_tool",
+        scan_web_tool_obj = StructuredTool.from_function(
+                name="mcp_scan_web_tool",
                 coroutine=self.web_automation_service.get_dom_selectors,
                 args_schema=WebScannerInput,
-                description="To get and export all element of an website by URL."
+                description="Automation."
             )
+        
+        # gen_login_tool_obj = StructuredTool.from_function(
+        #         name="mcp_gen_login_tool",
+        #         coroutine=self.web_automation_service.generate_login_script,
+        #         args_schema=LoginInput,
+        #         description="This is for testing purpose"
+        #     )
 
         self.tools = {
-            "mcp_web_element_tool": {
-                "instance": scanner_tool_obj,
-                "func": self.web_automation_service.get_dom_selectors, # Tham chiếu hàm để gọi ["func"]
-                "desc": scanner_tool_obj.description
+            "mcp_scan_web_tool": {
+                "instance": scan_web_tool_obj,
+                "func": self.web_automation_service.get_dom_selectors, # Reference the function to call ["func"]
+                "desc": scan_web_tool_obj.description
             }
+            # ,
+            # "mcp_gen_login_tool": {
+            #     "instance": gen_login_tool_obj,
+            #     "func": self.web_automation_service.generate_login_script, # Reference the function to call ["func"]
+            #     "desc": gen_login_tool_obj.description
+            # }
         }
         #self._setup_mcp_tools()
 
@@ -41,7 +54,7 @@ class MCPService:
 
         if tool_name in self.tools:
             print(f"--- [MCP] Executing tool: {tool_name} ---")
-            # Call relevant method (giả định là async)
+            # Call relevant method (assumption is async)
             result_data = await self.tools[tool_name]["func"](query=query)
             return json.dumps(result_data, indent=2, ensure_ascii=False)
         return f"Error: Not found tool '{tool_name}'."
@@ -51,3 +64,4 @@ class MCPService:
         if tool_name in self.tools:
             return f"[Data from tool: {tool_name}]"
         return "Tool not found."
+

@@ -17,7 +17,7 @@ class PromptRouter:
                 tool_instance = tool_obj["instance"]
                 description = tool_instance.description
                 try:
-                    arg_schema = tool_instance.args_schema.model_json_schema() if tool_obj.args_schema else {}
+                    arg_schema = tool_instance.args_schema.model_json_schema() if tool_instance.args_schema else {}
                 except AttributeError:
                     arg_schema = tool_instance.args_schema.schema()
 
