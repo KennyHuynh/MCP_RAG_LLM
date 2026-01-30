@@ -88,10 +88,6 @@
           {
             "assertion_type": "VISIBLE",
             "selector_hint": "text=Logged in as"
-          },
-          {
-            "assertion_type": "URL_CONTAINS",
-            "expected_value": "/account"
           }
         ]
       },
@@ -159,6 +155,7 @@
         ]
       },
       "continue_shopping_button": {
+        "type": "MODAL",
         "role": "BUTTON",
         "purpose": "Close the success modal and continue shopping",
         "locator_hints": [
@@ -235,7 +232,9 @@
           "condition": "Register / Login prompt appears",
           "trigger": {
             "type": "MODAL",
-            "detection_text": "Register / Login"
+            "role":"LINK",
+            "detection_text": "Register / Login",
+            "purpose": "Continue login to proceed on checkout"
           },
           "recovery_action": "Execute ae_login_flow and return to /view_cart"
         }
