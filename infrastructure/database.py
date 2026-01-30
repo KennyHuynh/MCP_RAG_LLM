@@ -6,6 +6,7 @@ from langchain_core.documents import Document
 # but 'langchain_classic' remains a valid path for specific ReAct agents.
 from langchain_classic.indexes import SQLRecordManager, index
 from langchain_huggingface import HuggingFaceEmbeddings
+import infrastructure.data_util as data_util
 
 
 class RAGStorage:
@@ -29,6 +30,8 @@ class RAGStorage:
         if len(self.vector_store.get()['ids']) == 0:
             # Load initial data using the deduplication logic
             self._init_db()
+
+        data_util.load_entire_knowledge_base("./infrastructure/rag_data_example")
 
     def _init_db(self):
         # 1. Define your initial content
