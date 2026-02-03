@@ -1,10 +1,7 @@
-import os
-from langchain_openai import ChatOpenAI
-import pytest
-from unittest.mock import patch
-from langchain_community.llms import Ollama # Giả định dùng Gemma qua Ollama
 from test_rag_storage import build_vector_store, search_documents
 from data_util import load_entire_knowledge_base
+from typing import List
+from langchain_core.documents import Document
 
 # Bộ câu hỏi Benchmark cho dữ liệu Automation
 BENCHMARK_SUITE = [
@@ -22,9 +19,6 @@ DIR_DATA = "./infrastructure/rag_data_example/rag_data"
 #     {"query": "How is a product added to the cart?", "expected_id": "ADD_TO_CART_STAGE"},
 # ]
 # DIR_DATA = "./infrastructure/rag_data_example/md_data"
-
-from typing import List
-from langchain_core.documents import Document
 
 def calculate_hit_rate(
     queries: List[dict],
