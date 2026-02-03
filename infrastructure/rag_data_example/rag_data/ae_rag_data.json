@@ -110,7 +110,7 @@
       "User is redirected to the account dashboard"
     ],
 
-    "Tags": [
+    "tags": [
       "login",
       "authentication",
       "smoke",
@@ -200,7 +200,7 @@
       }
     },
 
-    "Tags": ["cart", "add-to-cart", "critical-path"]
+    "tags": ["cart", "add-to-cart", "critical-path"]
   },
   {
     "schema_version": "1.0",
@@ -280,7 +280,7 @@
       }
     },
 
-    "Tags": ["checkout", "dependency-aware", "critical-path"]
+    "tags": ["checkout", "dependency-aware", "critical-path"]
   },
   {
     "schema_version": "1.0",
@@ -377,6 +377,6 @@
       }
     },
 
-    "Tags": ["payment", "order-confirmation", "critical-path"]
+    "tags": ["payment", "order-confirmation", "critical-path"]
   }
 ]
