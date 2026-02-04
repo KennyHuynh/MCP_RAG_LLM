@@ -24,7 +24,8 @@ def build_vector_store(
     vectordb = Chroma.from_documents(
         documents=documents,
         embedding=embeddings,
-        persist_directory=persist_directory
+        persist_directory=persist_directory,
+        collection_metadata={"hnsw:space": "cosine"} # Forces 0 to 1 scoring
     )
     print(f"✅ Successfully indexed {len(documents)} chunks.")
     return vectordb
@@ -33,6 +34,6 @@ def build_vector_store(
 def search_documents(
     vectordb: Chroma,
     query: str,
-    top_k: int = 5
+    top_k: int = 3
 ):
-    return vectordb.similarity_search(query, k=top_k)
+    return vectordb.similarity_search_with_relevance_scores(query, k=top_k)

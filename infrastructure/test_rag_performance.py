@@ -4,21 +4,21 @@ from typing import List
 from langchain_core.documents import Document
 
 # Bộ câu hỏi Benchmark cho dữ liệu Automation
-BENCHMARK_SUITE = [
-    {"query": "How to login to the application?", "expected_id": "ae_login_flow", "scope": "Authentication"},
-    {"query": "Add product to shopping cart", "expected_id": "ae_add_to_cart", "scope": "Product Interaction"},
-    {"query": "Verify user credentials and dashboard access", "expected_id": "ae_login_flow", "scope": "Authentication"},
-    {"query": "Steps for product interaction", "expected_id": "ae_add_to_cart", "scope": "Product Interaction"}
-]
-DIR_DATA = "./infrastructure/rag_data_example/rag_data"
-
 # BENCHMARK_SUITE = [
-#     {"query": "Describe the checkout process from login to payment.", "expected_id": "UNKNOWN_STAGE"},
-#     {"query": "Which steps involve clicking buttons?", "expected_id": "LOGIN_STAGE"},
-#     {"query": "How does the user log in?", "expected_id": "LOGIN_STAGE"},
-#     {"query": "How is a product added to the cart?", "expected_id": "ADD_TO_CART_STAGE"},
+#     {"query": "how to walking the dog", "expected_id": "ae_login_flow", "scope": "Authentication"},
+#     {"query": "Add product to shopping cart", "expected_id": "ae_add_to_cart", "scope": "Product Interaction"},
+#     {"query": "Verify user credentials and dashboard access", "expected_id": "ae_login_flow", "scope": "Authentication"},
+#     {"query": "Steps for product interaction", "expected_id": "ae_add_to_cart", "scope": "Product Interaction"}
 # ]
-# DIR_DATA = "./infrastructure/rag_data_example/md_data"
+# DIR_DATA = "./infrastructure/rag_data_example/rag_data"
+
+BENCHMARK_SUITE = [
+    {"query": "Describe the checkout process from login to payment.", "expected_id": "UNKNOWN_STAGE"},
+    {"query": "Which steps involve clicking buttons?", "expected_id": "LOGIN_STAGE"},
+    {"query": "How does the user log in?", "expected_id": "LOGIN_STAGE"},
+    {"query": "How is a product added to the cart?", "expected_id": "ADD_TO_CART_STAGE"},
+]
+DIR_DATA = "./infrastructure/rag_data_example/md_data"
 
 def calculate_hit_rate(
     queries: List[dict],
@@ -66,13 +66,18 @@ def test_rag_hit_rate():
     # 4. Retrieve docs
     retrieved_docs = []
     for q in BENCHMARK_SUITE:
-        docs = search_documents(vectordb, q["query"], top_k=5)
-        retrieved_docs.append(docs)
+        results_with_score = search_documents(vectordb, q["query"], top_k=3)
+        print(f"\nScores for '{q['query']}':")
+        for doc, score in results_with_score:
+            print(f" - {doc.metadata.get('test_id')}: {score:.4f}")
+        # Filter out results that are below the threshold
+        filtered_docs = [doc for doc, score in results_with_score if score >= 0.4]
+        retrieved_docs.append(filtered_docs)
 
     # 5. Evaluate hit rate
     hit_rate = calculate_hit_rate(BENCHMARK_SUITE, retrieved_docs)
 
-    assert hit_rate >= 0.5
+    assert hit_rate >= 0.5, f"Hit rate {hit_rate:.2%} is below the acceptable threshold."
 
 if __name__ == "__main__":
     test_rag_hit_rate()
