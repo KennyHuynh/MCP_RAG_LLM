@@ -102,7 +102,7 @@ class TaskExecutor:
             }
 
     async def _action_node(self, state: AgentState):
-        tool_result = self.tool_node.ainvoke(state)
+        tool_result = await self.tool_node.ainvoke(state)
         return {
             "messages": tool_result["messages"],
         }

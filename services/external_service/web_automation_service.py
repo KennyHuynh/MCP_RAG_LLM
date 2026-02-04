@@ -66,45 +66,47 @@ class WebAutomationService:
                     await self.page.goto(url_override)
                     await self.page.wait_for_load_state("networkidle")
                 actual_url = self.page.url
-                for locator_type in LocatorType:
-                    if locator_type.value in target:
-                        target_type = locator_type.value
-                        break
-                target_type = target_type if not target_type else target_type.split(" ")[-1]
-                actual_target = self._parse_target(target=target).split(target_type)[0].strip()
+                if target:
+                    for locator_type in LocatorType:
+                        if locator_type.value in target:
+                            target_type = locator_type.value
+                            break
+                    target_type = target_type if not target_type else target_type.split(" ")[-1]
+                    actual_target = self._parse_target(target=target).split(target_type)[0].strip()
 
-                target_element, meta_data = await self._scan_current_page(actual_target)
+                    target_element, meta_data = await self._scan_current_page(actual_target, target_type)
 
-                if isinstance(action, dict):
-                    action = action["description"]
-                if action and actual_target:
-                    # Check if target exist at the current page
-                    if target_element:
-                        if await target_element.is_visible(timeout=5000):
-                            try:
-                                if action == "click":
-                                    await target_element.click()
-                                    await self.page.wait_for_load_state("networkidle", timeout=5000)
-                                elif action == "fill":
-                                    await target_element.fill(str(value))
-                                    await self.page.wait_for_timeout(1000)
-                                elif action == "select":
-                                    await target_element.select_option(str(value))
-                                    await self.page.wait_for_timeout(1000)
-                                actual_url = self.page.url
-                                await self.page.wait_for_timeout(1000) 
-                            except Exception as e:
-                                return f"⚠️ The selector '{actual_target}' found but unable to perform {action}. Error: {str(e)}"
-                        else:
-                            return json.dumps({
-                                "error": f"Selector from RAG '{actual_target}' not visible at the current page.",
-                                "url": actual_url,
-                            }, ensure_ascii=False)
+                    if isinstance(action, dict):
+                        action = action["description"]
+                    target_element_count = await target_element.count() if target_element else 0
+                    if target_element_count == 1:
+                        if action and actual_target:
+                            # Check if target exist at the current page
+                            if target_element:
+                                if await target_element.is_visible(timeout=5000):
+                                    try:
+                                        if action == "click":
+                                            await target_element.click()
+                                            await self.page.wait_for_load_state("networkidle", timeout=5000)
+                                        elif action == "fill":
+                                            await target_element.fill(str(value))
+                                            await self.page.wait_for_timeout(1000)
+                                        elif action == "select":
+                                            await target_element.select_option(str(value))
+                                            await self.page.wait_for_timeout(1000)
+                                        actual_url = self.page.url
+                                        await self.page.wait_for_timeout(1000) 
+                                    except Exception as e:
+                                        return f"⚠️ The selector '{actual_target}' found but unable to perform {action}. Error: {str(e)}"
+                                else:
+                                    return json.dumps({
+                                        "error": f"Selector from RAG '{actual_target}' not visible at the current page.",
+                                        "url": actual_url,
+                                    }, ensure_ascii=False)
                     else:
                         return json.dumps({
                                 "error": f"Selector from RAG '{actual_target}'not found at the current page. Select a locator from {meta_data} properties such as 'name, placeholder, text' approximately matches with value '{actual_target}'",
                                 "url": actual_url,
-                                "selectors": target_element,
                                 "meta_data": meta_data
                             }, indent=2, ensure_ascii=False)
             except Exception as e:
@@ -130,20 +132,21 @@ class WebAutomationService:
             )
             self.page = await self.context.new_page()
 
-    async def _scan_current_page(self, search_text: str = None) -> list:
+    async def _scan_current_page(self, search_text: str = None, suggested_target_type: str = "any") -> list:
         if not self.page:
             return []
 
         try:
             if search_text:
                 base_locator = self.page.get_by_text(search_text, exact=False)
-            else:
-                base_locator = self.page.locator("button, input, a, select, textarea, label, [role='button']")
             count = await base_locator.count()
+            if count < 1:
+                base_locator = self.page.locator("button, input, select, textarea, label, [role='button']")
+                count = await base_locator.count()
             all_results = []
             results = []
 
-            for i in range(min(count, 10)):
+            for i in range(min(count, 30)):
                 el = base_locator.nth(i)
                 if await el.is_visible():
                     metadata = await el.evaluate("""(node) => {
@@ -151,7 +154,7 @@ class WebAutomationService:
                             tag: node.tagName.toLowerCase(),
                             id: node.id || null,
                             name: node.getAttribute('name') || null,
-                            placeholder: node.getAttribute('placeholder') || null,
+                            placeholder: node.getAttribute('placeholder') || node.placeholder || null,
                             role: node.getAttribute('role') || null,
                             // textContent can get complex text that innerText can miss
                             text: (node.textContent || "").replace(/\\s+/g, ' ').trim().substring(0, 50),
@@ -160,14 +163,20 @@ class WebAutomationService:
                     }""")
                     metadata["playwright_hint"] = f"get_by_text('{metadata['text']}')" if metadata['text'] else f"locator('{metadata['tag']}')"
                     all_results.append(metadata)
-                    for k, v in metadata.items():
-                        if v:
-                            score = fuzz.ratio(v.lower(), search_text.lower())
-                            if score > 88:
-                                print(f"score ratio is: {score}")
-                                selector = el
-                                results.append(metadata)
-                                return selector, results
+                    valid_values = [v for v in metadata.values() if v.lower() == suggested_target_type.lower() and fuzz.ratio(v.lower(), search_text.lower()) > 80]
+                    if valid_values:
+                        selector = el
+                        results.append(metadata)
+                        return selector, results
+                    # for k, v in metadata.items():
+                    #     if v:
+                    #         score = fuzz.ratio(v.lower(), search_text.lower())
+                    #         if score > 80:
+                    #             if suggested_target_type and suggested_target_type.lower() in k.lower():
+                    #                 print(f"score ratio is: {score}")
+                    #                 selector = el
+                    #                 results.append(metadata)
+                    #                 return selector, results
             return base_locator, all_results
         except Exception as e:
             print(f"--- [Hybrid Scan Error] {str(e)} ---")

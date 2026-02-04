@@ -36,7 +36,7 @@ from langchain_text_splitters import MarkdownHeaderTextSplitter
 
 def load_entire_knowledge_base(
     directory_path: str,
-    chunk_size: int = 1000,
+    chunk_size: int = 4000,
     chunk_overlap: int = 150,
 ) -> List[Document]:
     splitter = RecursiveCharacterTextSplitter(
@@ -219,27 +219,27 @@ def load_entire_knowledge_base(
                 continue # Đã xử lý xong JSON, nhảy sang file tiếp theo
 
             # ---- XỬ LÝ MD ----
-            if suffix == ".md":
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    data = f.read()
-                # 1. Define the headers to split on (Mapping # Flow and ## STEP to metadata)
-                headers_to_split_on = [("#", "flow_id"), ("##", "test_id")]
+            # if suffix == ".md":
+            #     with open(file_path, 'r', encoding='utf-8') as f:
+            #         data = f.read()
+            #     # 1. Define the headers to split on (Mapping # Flow and ## STEP to metadata)
+            #     headers_to_split_on = [("#", "flow_id"), ("##", "test_id")]
 
-                md_splitter = MarkdownHeaderTextSplitter(headers_to_split_on=headers_to_split_on)
-                md_header_splits = md_splitter.split_text(data)
+            #     md_splitter = MarkdownHeaderTextSplitter(headers_to_split_on=headers_to_split_on)
+            #     md_header_splits = md_splitter.split_text(data)
 
-                # 2. Clean up the 'test_id' (Removing 'STEP 1: ' prefix to match BENCHMARK_SUITE)
-                for doc in md_header_splits:
-                    raw_test_id = doc.metadata.get("test_id", "")
-                    if ":" in raw_test_id:
-                        doc.metadata["test_id"] = raw_test_id.split(":")[-1].strip()
-                    raw_flow_id = doc.metadata.get("flow_id", "")
-                    if ":" in raw_flow_id:
-                        doc.metadata["flow_id"] = raw_flow_id.split(":")[-1].strip()
-                # Add common metadata
-                doc.metadata["source"] = file_path.name
-                all_processed_chunks.extend(splitter.split_documents(md_header_splits))
-                continue # Đã xử lý xong MD, nhảy sang file tiếp theo
+            #     # 2. Clean up the 'test_id' (Removing 'STEP 1: ' prefix to match BENCHMARK_SUITE)
+            #     for doc in md_header_splits:
+            #         raw_test_id = doc.metadata.get("test_id", "")
+            #         if ":" in raw_test_id:
+            #             doc.metadata["test_id"] = raw_test_id.split(":")[-1].strip()
+            #         raw_flow_id = doc.metadata.get("flow_id", "")
+            #         if ":" in raw_flow_id:
+            #             doc.metadata["flow_id"] = raw_flow_id.split(":")[-1].strip()
+            #     # Add common metadata
+            #     doc.metadata["source"] = file_path.name
+            #     all_processed_chunks.extend(splitter.split_documents(md_header_splits))
+            #     continue # Đã xử lý xong MD, nhảy sang file tiếp theo
 
             # ---- XỬ LÝ TXT, CSV... ----
             docs = [] # Initialize to avoid NameError

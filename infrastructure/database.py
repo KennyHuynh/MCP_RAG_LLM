@@ -15,7 +15,7 @@ class RAGStorage:
         self.embeddings = HuggingFaceEmbeddings(
             model="paraphrase-multilingual-MiniLM-L12-v2")
         gen = data_util.load_entire_knowledge_base(
-            "./infrastructure/rag_data_example/data_files")
+            "./infrastructure/rag_data_example/md_data")
         batch = []
 
         # Initialize the Vector Store with a persistent directory
