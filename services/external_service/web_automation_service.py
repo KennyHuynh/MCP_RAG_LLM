@@ -1,118 +1,222 @@
 import asyncio
+from enum import Enum
 import json
 import re
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Union
 from playwright.async_api import async_playwright
+from rapidfuzz import fuzz
+
+
+class LocatorType(Enum):
+    BUTTON = "button"
+    TEXTBOX = "textbox"
+    LABEL = "label"
+    PLACEHOLDER = "placeholder"
+    ROLE = "role"
+    INPUT = "input"
+    LINK = "link"
+    ANY = "any"
 
 
 class WebScannerInput(BaseModel):
     """This class is identifying input data structure for tool get_dom_selectors"""
-    query: str = Field(description="User wants to scan web elements.")
-    action: Optional[str] = Field(default=None, description="Required action(click/fill) to go to next step. Info is retrieve from RAG.")
-    target: Optional[str] = Field(default=None, description="Target Selector for action. Info is retrieve from RAG.")
-
-
-# class LoginInput(BaseModel):
-#     query: str = Field(
-#         description="User wants to generate script for Login feature")
-#     url: str = Field(description="Login page url")
-#     username_selector: str = Field(
-#         description="Selector of username input (id, css, xpath)")
-#     password_selector: str = Field(description="Selector of password input")
-#     submit_selector: str = Field(description="Selector of Login button")
-
-
-# class PaymentInput(BaseModel):
-#     query: str = Field(
-#         description="User wants to generate script for Checkout/Payment feature")
-#     item_name: str = Field(description="Name of item need to checkout")
-#     payment_method: str = Field(
-#         description="Payment method: 'visa', 'momo', 'bank_transfer'")
+    action: Optional[Union[str, dict]] = Field(
+        default=None, description="Required action(click/fill) to go to next step. Info is retrieved from RAG.")
+    target: Optional[Union[str, dict]] = Field(
+        default=None, description="Target Selector for action. Info is retrieved from RAG.")
+    value: Optional[str] = Field(
+        None, description="The value to be filled if action is 'fill.'")
+    url_override: Optional[str] = Field(
+        None, description="The specific URL that AI privately exports from RAG or User's query in http or https format. Never invent, guess, or use placeholder values like 'laptop' or '16gb-ram'")
 
 
 class WebAutomationService:
     def __init__(self):
+        self._playwright = None
         self.browser = None
         self.page = None
+        self._lock = asyncio.Lock()
 
-    async def get_dom_selectors(self, query: str, action: str = None, target: str= None, value: str = None) -> str:
-        """Using Playwright to scan web structure.
-        Export url from user query"""
-        url = re.findall(r'https?://[^\s]+', query)[0]
+    async def _ensure_browser(self):
+        """Init brower (Singleton)"""
+        async with self._lock:
+            if not self.browser:
+                self._playwright = await async_playwright().start()
+                self.browser = await self._playwright.chromium.launch(
+                    headless=False,
+                    slow_mo=1000)
+                self.context = await self.browser.new_context(
+                    ignore_https_errors=True,
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36"
+                )
+                self.page = await self.context.new_page()
+                print(f"Service ID: {id(self)}")
+
+    async def get_dom_selectors(self, action: str = None, target: any = None, value: str = None, url_override: str = None) -> str:
+        async with self._lock:
+            await self._internal_ensure_browser()
+            actual_target = target
+            target_type = ""
+            target_element = None
+            actual_url = self.page.url if self.page else url_override
+            try:
+                if url_override and (url_override not in actual_url):
+                    #If having a new URL, navigate to this new one
+                    await self.page.goto(url_override)
+                    await self.page.wait_for_load_state("networkidle")
+                actual_url = self.page.url
+                for locator_type in LocatorType:
+                    if locator_type.value in target:
+                        target_type = locator_type.value
+                        break
+                target_type = target_type if not target_type else target_type.split(" ")[-1]
+                actual_target = self._parse_target(target=target).split(target_type)[0].strip()
+
+                target_element, meta_data = await self._scan_current_page(actual_target)
+
+                if isinstance(action, dict):
+                    action = action["description"]
+                if action and actual_target:
+                    # Check if target exist at the current page
+                    if target_element:
+                        if await target_element.is_visible(timeout=5000):
+                            try:
+                                if action == "click":
+                                    await target_element.click()
+                                    await self.page.wait_for_load_state("networkidle", timeout=5000)
+                                elif action == "fill":
+                                    await target_element.fill(str(value))
+                                    await self.page.wait_for_timeout(1000)
+                                elif action == "select":
+                                    await target_element.select_option(str(value))
+                                    await self.page.wait_for_timeout(1000)
+                                actual_url = self.page.url
+                                await self.page.wait_for_timeout(1000) 
+                            except Exception as e:
+                                return f"⚠️ The selector '{actual_target}' found but unable to perform {action}. Error: {str(e)}"
+                        else:
+                            return json.dumps({
+                                "error": f"Selector from RAG '{actual_target}' not visible at the current page.",
+                                "url": actual_url,
+                            }, ensure_ascii=False)
+                    else:
+                        return json.dumps({
+                                "error": f"Selector from RAG '{actual_target}'not found at the current page. Select a locator from {meta_data} properties such as 'name, placeholder, text' approximately matches with value '{actual_target}'",
+                                "url": actual_url,
+                                "selectors": target_element,
+                                "meta_data": meta_data
+                            }, indent=2, ensure_ascii=False)
+            except Exception as e:
+                if "net::ERR_ABORTED" in str(e):
+                    print(
+                        f"--- [System] Error ERR_ABORTED at {actual_url}, trying... ---")
+                    await asyncio.sleep(1)
+                    try:
+                        await self.page.goto(actual_url, wait_until="load", timeout=20000)
+                        return await self.get_dom_selectors(url_override=actual_url)
+                    except:
+                        return f"❌ Error: Unable to load {actual_url} after retry."
+                else:
+                    raise e
+
+    async def _internal_ensure_browser(self):
         if not self.browser:
-            p = await async_playwright().start()
-            self.browser = await p.chromium.launch(headless=True)
-            context = await self.browser.new_context(
-                viewport={'width': 1280, 'height': 720},
-                user_agent="MCP-Automation-Bot/1.0"
+            from playwright.async_api import async_playwright
+            self._playwright = await async_playwright().start()
+            self.browser = await self._playwright.chromium.launch(headless=False)
+            self.context = await self.browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0 Safari/537.36"
             )
-            self.page = await context.new_page()
+            self.page = await self.context.new_page()
+
+    async def _scan_current_page(self, search_text: str = None) -> list:
+        if not self.page:
+            return []
 
         try:
-            # Wait until page loaded (timeout 30s)
-            await self.page.goto(url, wait_until="networkidle", timeout=30000)
-            if url:
-                await self.page.goto(url, wait_until="networkidle")
-            elif action == "click" and target:
-                await self.page.click(target)
-                await self.page.wait_for_load_state("networkidle")
-            elif action == "fill" and target:
-                await self.page.fill(target, value)
+            if search_text:
+                base_locator = self.page.get_by_text(search_text, exact=False)
+            else:
+                base_locator = self.page.locator("button, input, a, select, textarea, label, [role='button']")
+            count = await base_locator.count()
+            all_results = []
+            results = []
 
-            # Script JS to get Selectors for Playwright
-            # just get interactionable Selectors to avoid AI be noise.
-            selectors = await self.page.evaluate("""() => {
-                const elements = document.querySelectorAll('input, button, a, select, textarea');
-                return Array.from(elements).map(el => ({
-                    tag: el.tagName.toLowerCase(),
-                    id: el.id || null,
-                    name: el.getAttribute('name') || null,
-                    placeholder: el.getAttribute('placeholder') || null,
-                    aria_label: el.getAttribute('aria-label') || null,
-                    text: el.innerText.trim().substring(0, 30) || null
-                })).filter(el => el.id || el.name || el.aria_label || el.text);
-            }""")
-
-            # Return result as JSON so that AI can easily resolve in Prompt
-            return json.dumps({
-                "url": url,
-                "elements_found": len(selectors),
-                # limit 50 elements to avoid waste of using Token
-                "selectors": selectors[:50]
-            }, indent=2, ensure_ascii=False)
-
+            for i in range(min(count, 10)):
+                el = base_locator.nth(i)
+                if await el.is_visible():
+                    metadata = await el.evaluate("""(node) => {
+                        return {
+                            tag: node.tagName.toLowerCase(),
+                            id: node.id || null,
+                            name: node.getAttribute('name') || null,
+                            placeholder: node.getAttribute('placeholder') || null,
+                            role: node.getAttribute('role') || null,
+                            // textContent can get complex text that innerText can miss
+                            text: (node.textContent || "").replace(/\\s+/g, ' ').trim().substring(0, 50),
+                            type: node.getAttribute('type') || null
+                        };
+                    }""")
+                    metadata["playwright_hint"] = f"get_by_text('{metadata['text']}')" if metadata['text'] else f"locator('{metadata['tag']}')"
+                    all_results.append(metadata)
+                    for k, v in metadata.items():
+                        if v:
+                            score = fuzz.ratio(v.lower(), search_text.lower())
+                            if score > 88:
+                                print(f"score ratio is: {score}")
+                                selector = el
+                                results.append(metadata)
+                                return selector, results
+            return base_locator, all_results
         except Exception as e:
-            await self.browser.close()
-            return f"❌ Error when accessing website {url}: {str(e)}"
-            
+            print(f"--- [Hybrid Scan Error] {str(e)} ---")
+            return []
 
-    # async def generate_login_script(self, query: str, url: str, username_selector: str, password_selector: str, submit_selector: str) -> str:
-    #     script = f"""
-    #     // Playwright Login Script
-    #     await page.goto('{url}');
-    #     await page.fill('{username_selector}', 'YOUR_USERNAME');
-    #     await page.fill('{password_selector}', 'YOUR_PASSWORD');
-    #     await page.click('{submit_selector}');
-    #     await expect(page).not.toHaveURL(/.*login/);
-    #     """
-    #     return script.strip()
-    
+    def _parse_target(self, target: any) -> str:
+        if not target:
+            return ""
+
+        if isinstance(target, dict):
+            parsed = target.get("value") or \
+                target.get("selector") or \
+                target.get("id") or \
+                target.get("description")
+
+            if not parsed:
+                values = list(target.values())
+                parsed = values[0] if values else ""
+            return str(parsed)
+
+        elif isinstance(target, list):
+            return str(target[0]) if target else ""
+
+        elif isinstance(target, str):
+            target_str = str(target).strip()
+            if "has-text" in target_str and "'" not in target_str and '"' not in target_str:
+                target_str = re.sub(r'has-text\((.*?)\)',
+                                    r"has-text('\1')", target_str)
+            return target_str
+
     async def cleanup(self):
-        if not self.browser:
-            return
-    
-    # Shield giúp bảo vệ quá trình đóng không bị hủy bởi loop termination
-        async def _close():
-            try:
-                if self.page: await self.page.close()
-                if self.browser: await self.browser.close()
-                if self._playwright: await self._playwright.stop()
-            except: pass
-            finally:
-                self.page = None
-                self.browser = None
-                self._playwright = None
+        async with self._lock:
+            if not self.browser:
+                return
 
-        await asyncio.shield(_close())
-    
+        # Shield help protect browser close not aborted by loop
+            async def _close():
+                try:
+                    if self.page:
+                        await self.page.close()
+                    if self.browser:
+                        await self.browser.close()
+                    if self._playwright:
+                        await self._playwright.stop()
+                except:
+                    pass
+                finally:
+                    self.page = None
+                    self.browser = None
+                    self._playwright = None
+
+            await asyncio.shield(_close())
