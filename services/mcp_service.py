@@ -15,7 +15,7 @@ class MCPService:
                 name="mcp_scan_web_tool",
                 coroutine=self.web_automation_service.get_dom_selectors,
                 args_schema=WebScannerInput,
-                description="Automation."
+                description="Automation Tool. If tool doesn't provide required information, USE data in RAG."
             )
         
         # gen_login_tool_obj = StructuredTool.from_function(
@@ -47,11 +47,13 @@ class MCPService:
     #         self.mcp.tool(name=name, description=info["desc"])(info["func"])
 
     # IDENTIFY METHODS THAT TASKEXECUTOR CALLING
-    async def call_tool_async(self, tool_name: str, query: str):
+    async def call_tool_async(self, tool_raw: str, query: str):
         """Execute tool asynchronize"""
-        if isinstance(tool_name, dict):
-            tool_name = tool_name.get("name") or list(tool_name.values())[0]
-
+        if isinstance(tool_raw, dict):
+            values = list(tool_raw.values())
+            tool_name = tool_name.get("name") or (values(0) if values else None)
+        if not tool_name:
+            return "Cannot identify tool to execute"
         if tool_name in self.tools:
             print(f"--- [MCP] Executing tool: {tool_name} ---")
             # Call relevant method (assumption is async)

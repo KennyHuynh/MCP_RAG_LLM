@@ -14,6 +14,9 @@ class RAGStorage:
         self.db_path = db_path
         self.embeddings = HuggingFaceEmbeddings(
             model="paraphrase-multilingual-MiniLM-L12-v2")
+        gen = data_util.load_entire_knowledge_base(
+            "./infrastructure/rag_data_example")
+        batch = []
 
         # Initialize the Vector Store with a persistent directory
         self.vector_store = Chroma(
@@ -26,12 +29,17 @@ class RAGStorage:
         namespace = "chroma/internal_knowledge"
         self.record_manager = SQLRecordManager(namespace, db_url=record_db)
         self.record_manager.create_schema()
+        index(
+            gen,
+            self.record_manager,
+            self.vector_store,
+            cleanup="incremental",
+            source_id_key="source"
+        )
 
-        if len(self.vector_store.get()['ids']) == 0:
-            # Load initial data using the deduplication logic
-            self._init_db()
-
-        data_util.load_entire_knowledge_base("./infrastructure/rag_data_example")
+        # if len(self.vector_store.get()['ids']) == 0:
+        #     # Load initial data using the deduplication logic
+        #     self._init_db()
 
     def _init_db(self):
         # 1. Define your initial content
@@ -94,6 +102,7 @@ Code: await expect(page).toHaveURL(/.*my-account/);""",
         print(f"--- [RAG Search] Finding data for user's query: {query} ---")
         results = self.vector_store.similarity_search(query, k=3)
         return results
+
 
 if __name__ == "__main__":
     rag = RAGStorage()
