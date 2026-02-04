@@ -63,25 +63,159 @@ def load_entire_knowledge_base(
             if suffix == ".json":
                 with open(file_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    # Nếu JSON là list các object (như data của bạn)
+
+                    # Nếu JSON là list test cases
                     if isinstance(data, list):
                         for item in data:
-                            # Tạo nội dung search tập trung vào Intent và Tags
-                            content = f"TestID: {item.get('test_id')}\n" \
-                                      f"Summary: {item.get('intent', {}).get('summary')}\n" \
-                                      f"Scope: {item.get('scope')}\n" \
-                                      f"Tags: {', '.join(item.get('tags', []))}"
+                            test_id = item.get("test_id", "unknown_test")
+                            tags = item.get("tags", [])
+                            scope = item.get("scope", "")
+                            test_type = item.get("test_type", "")
 
-                            doc = Document(
-                                page_content=content,
-                                metadata={
-                                    "source": file_path.name,
-                                    "test_id": item.get("test_id"),
-                                    "category": item.get("tags")[0] if item.get("tags") else "general"
-                                }
+                            # -------- 1. INTENT CHUNK (WHY) --------
+                            intent = item.get("intent", {})
+                            intent_content = (
+                                f"Test ID: {test_id}\n"
+                                f"Intent Summary: {intent.get('summary', '')}\n"
+                                f"Business Value: {intent.get('business_value', '')}\n"
+                                f"Scope: {scope}\n"
+                                f"Test Type: {test_type}"
                             )
-                            # Chunk nhỏ dữ liệu JSON (thường JSON test case đã nhỏ sẵn)
-                            all_processed_chunks.extend(splitter.split_documents([doc]))
+
+                            all_processed_chunks.append(
+                                Document(
+                                    page_content=intent_content,
+                                    metadata={
+                                        "source": file_path.name,
+                                        "test_id": test_id,
+                                        "section": "intent",
+                                        "scope": scope,
+                                        "tags": ",".join(tags)
+                                    }
+                                )
+                            )
+
+                            # -------- 2. UI ELEMENTS CHUNK (WHAT) --------
+                            ui_elements = item.get("ui_elements", {})
+                            if ui_elements:
+                                ui_lines = [f"Test ID: {test_id}", "UI Elements:"]
+                                for name, el in ui_elements.items():
+                                    ui_lines.append(
+                                        f"- {name} | role: {el.get('role')} | "
+                                        f"purpose: {el.get('purpose')} | "
+                                        f"locators: {', '.join(el.get('locator_hints', []))}"
+                                    )
+
+                                all_processed_chunks.append(
+                                    Document(
+                                        page_content="\n".join(ui_lines),
+                                        metadata={
+                                            "source": file_path.name,
+                                            "test_id": test_id,
+                                            "section": "ui_elements",
+                                            "tags": ",".join(tags)
+                                        }
+                                    )
+                                )
+
+                            # -------- 3. TEST STEPS CHUNK (HOW) --------
+                            steps = item.get("test_steps", [])
+                            if steps:
+                                step_lines = [f"Test ID: {test_id}", "Test Steps:"]
+                                for step in steps:
+                                    step_lines.append(
+                                        f"Step {step.get('step')}: "
+                                        f"{step.get('action')} - "
+                                        f"{step.get('description', '')} "
+                                        f"(target: {step.get('element', step.get('target', ''))})"
+                                    )
+
+                                all_processed_chunks.append(
+                                    Document(
+                                        page_content="\n".join(step_lines),
+                                        metadata={
+                                            "source": file_path.name,
+                                            "test_id": test_id,
+                                            "section": "test_steps",
+                                            "tags": ",".join(tags)
+                                        }
+                                    )
+                                )
+
+                            # -------- 4. VALIDATION RULES CHUNK (TRUTH) --------
+                            validation = item.get("validation_rules", {})
+                            if validation:
+                                val_lines = [f"Test ID: {test_id}", "Validation Rules:"]
+                                for result_type, rules in validation.items():
+                                    val_lines.append(f"{result_type.upper()} CONDITIONS:")
+                                    for check in rules.get("manual_checks", []):
+                                        val_lines.append(f"- Manual check: {check}")
+                                    for assertion in rules.get("automation_assertions", []):
+                                        val_lines.append(
+                                            f"- Assertion: {assertion.get('assertion_type')} | "
+                                            f"selector: {assertion.get('selector_hint', '')}"
+                                        )
+
+                                all_processed_chunks.append(
+                                    Document(
+                                        page_content="\n".join(val_lines),
+                                        metadata={
+                                            "source": file_path.name,
+                                            "test_id": test_id,
+                                            "section": "validation_rules",
+                                            "tags": ",".join(tags)
+                                        }
+                                    )
+                                )
+
+                            # -------- 5. PRE / POST CONDITIONS CHUNK (WHEN / AFTER) --------
+                            pre = item.get("preconditions", [])
+                            post = item.get("postconditions", [])
+
+                            if pre or post:
+                                cond_lines = [f"Test ID: {test_id}"]
+
+                                if pre:
+                                    cond_lines.append("Preconditions:")
+                                    for p in pre:
+                                        cond_lines.append(f"- {p}")
+
+                                if post:
+                                    cond_lines.append("Postconditions:")
+                                    for p in post:
+                                        cond_lines.append(f"- {p}")
+
+                                all_processed_chunks.append(
+                                    Document(
+                                        page_content="\n".join(cond_lines),
+                                        metadata={
+                                            "source": file_path.name,
+                                            "test_id": test_id,
+                                            "section": "conditions",
+                                            "tags": ",".join(tags)
+                                        }
+                                    )
+                                )
+
+                            # -------- 6. METADATA / TAGS CHUNK (RETRIEVAL) --------
+                            meta_content = (
+                                f"Test ID: {test_id}\n"
+                                f"Scope: {scope}\n"
+                                f"Test Type: {test_type}\n"
+                                f"Tags: {', '.join(tags)}"
+                            )
+
+                            all_processed_chunks.append(
+                                Document(
+                                    page_content=meta_content,
+                                    metadata={
+                                        "source": file_path.name,
+                                        "test_id": test_id,
+                                        "section": "metadata",
+                                        "tags": ",".join(tags)
+                                    }
+                                )
+                            )
                 continue # Đã xử lý xong JSON, nhảy sang file tiếp theo
 
             # ---- XỬ LÝ MD ----
