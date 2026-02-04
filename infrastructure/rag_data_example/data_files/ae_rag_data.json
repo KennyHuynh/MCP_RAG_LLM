@@ -307,27 +307,27 @@
       "name_on_card": {
         "role": "INPUT",
         "purpose": "Cardholder name",
-        "locator_hints": ["name", "placeholder:Name on Card"]
+        "locator_hints": ["name", "data-qa:name-on-card"]
       },
       "card_number": {
         "role": "INPUT",
         "purpose": "Credit card number",
-        "locator_hints": ["placeholder:Card Number"]
+        "locator_hints": ["data-qa:card-number"]
       },
       "cvc": {
         "role": "INPUT",
         "purpose": "Card verification code",
-        "locator_hints": ["placeholder:CVC"]
+        "locator_hints": ["data-qa:cvc"]
       },
       "expiry_month": {
         "role": "INPUT",
         "purpose": "Expiration month",
-        "locator_hints": ["placeholder:MM"]
+        "locator_hints": ["data-qa:expiry-month"]
       },
       "expiry_year": {
         "role": "INPUT",
         "purpose": "Expiration year",
-        "locator_hints": ["placeholder:YYYY"]
+        "locator_hints": ["data-qa:expiry-year"]
       },
       "pay_and_confirm_button": {
         "role": "BUTTON",
@@ -341,12 +341,18 @@
     "test_steps": [
       {
         "step": 1,
+        "action": "CLICK",
+        "description": "Click on Place Order button",
+        "element": "checkout_out_button"
+      },
+      {
+        "step": 2,
         "action": "FILL",
         "description": "Enter payment details",
         "element": "name_on_card"
       },
       {
-        "step": 2,
+        "step": 3,
         "action": "CLICK",
         "description": "Submit payment",
         "element": "pay_and_confirm_button"
