@@ -9,7 +9,7 @@ Description: Process from login to payment.
 
 ## STEP 2: ADD_TO_CART_STAGE
 - Target URL: User is at https://automationexercise.com/products
-- Action: `click` | Target: Add To Cart button
+- Action: `click` | Target: Add To Cart link
 
 ## STEP 3: PAYMENT STAGE
 - Target URL: User is at https://automationexercise.com/payment
